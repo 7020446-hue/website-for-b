@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  role          Role      @default(CUSTOMER)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  requests      QuoteRequest[]
+  invoices      Invoice[]
+  tickets       Ticket[]
+  messages      Message[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  price       Float? // Price can be optional for custom quotes
+  category    String
+  images      String? // Combined as JSON string or single URL for simplicity in MVP
+  minQuantity Int      @default(1)
+  type        String   @default("fixed") // "fixed" or "custom"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requests    QuoteRequest[]
+}
+
+enum RequestStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model QuoteRequest {
+  id          String        @id @default(cuid())
+  name        String
+  email       String
+  productId   String?
+  product     Product?      @relation(fields: [productId], references: [id])
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  quantity    Int           @default(1)
+  description String
+  fileUrl     String?
+  status      RequestStatus @default(NEW)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  invoice     Invoice?
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  requestId     String?       @unique
+  request       QuoteRequest? @relation(fields: [requestId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  items         String // JSON stringified array of items
+  subtotal      Float
+  tax           Float
+  total         Float
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+model Ticket {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  subject   String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  content   String
+  fileUrl   String?
+  createdAt DateTime @default(now())
+}
